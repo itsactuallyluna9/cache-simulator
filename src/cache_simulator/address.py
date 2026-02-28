@@ -16,8 +16,8 @@ def get_address_format(memory_size: int, page_size: int, cache_size: int, line_p
         return address_legnth, tag, set_num, offset_length
 
 
-def apply_address_format(address: str, memory_size: int, page_size: int, cache_size: int):
-    address_length, tag, page_num, offset_length = get_address_format(memory_size, page_size, cache_size)
+def apply_address_format(address: str, memory_size: int, page_size: int, cache_size: int, line_per_set: int=1):
+    address_length, tag, page_num, offset_length = get_address_format(memory_size, page_size, cache_size, line_per_set)
     # Assume address is given in hex (0xbbbb)
     address_bin = bin(int(address[2:], 16))[2:].zfill(address_length)
  

@@ -14,18 +14,16 @@ class CacheLine:
 class Cache:
     cache: list[list[CacheLine]]
 
-    def __init__(self, cache_size: int, page_size: int, mapping: str, lines_per_set: int = 1):
-        self.mapping = mapping
+    def __init__(self, cache_size: int, page_size: int, lines_per_set: int = 1):
         self.cache = []
         self.page_size = page_size
-        self.mapping = mapping
         for ith_set in range(cache_size // page_size):
             line_set = []
             for ith_line in range(lines_per_set):
                 line_set.append(CacheLine())
             self.cache.append(line_set)
 
-    def check(self, tag_bits: str, set_bits: str)->bool:
+    def check(self, tag_bits: str, set_bits: str=None)->bool:
         if set_bits == None: # fully-associative
             for set in self.cache:
                 for line in set:

@@ -27,15 +27,18 @@ def first_in_first_out(cache_set: list[CacheLine]) -> CacheLine:
             first = line
     return first
 
-def replace_unused(cache_set: list[CacheLine]) -> Optional[CacheLine]:
+def replace_unused(cache_set:list[CacheLine], new_tag: str):
     for line in cache_set:
         if line.invalid:
-            return line
-    return None
+            line.tag = new_tag
+            line.invalid = False
+            break
+def update_swapped_timestamp(cache: Cache):
+    pass
 
 def swap_page(cache: Cache,tag_bits: str,set_bits: str=None, line_index:int=0):
-    set_index = 0 if set_bits is None else int(set_bits, 2) 
+    update_swapped_timestamp(cache)
+    set_index = 0 if set_bits is None else int(set_bits, 2) # for fully-associative
     line = cache.cache[set_index][line_index]
     line.tag = tag_bits
     line.invalid = False
-
