@@ -1,7 +1,7 @@
 import random
 from typing import Optional
-from .cache import CacheLine, Cache
-from .memory import Memory
+from cache import CacheLine, Cache
+from memory import Memory
 
 def random_replacement(cache_set: list[CacheLine]) -> CacheLine:
     return random.choice(cache_set)
@@ -33,5 +33,9 @@ def replace_unused(cache_set: list[CacheLine]) -> Optional[CacheLine]:
             return line
     return None
 
-def swap_page(cache: Cache, memory: Memory):
-    pass
+def swap_page(cache: Cache,tag_bits: str,set_bits: str=None, line_index:int=0):
+    set_index = 0 if set_bits is None else int(set_bits, 2) 
+    line = cache.cache[set_index][line_index]
+    line.tag = tag_bits
+    line.invalid = False
+

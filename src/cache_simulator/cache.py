@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from .address import apply_address_format
+from address import apply_address_format
 
 @dataclass
 class CacheLine:
-    tag: int = 0
+    tag: str = ""
     dirty: bool = False # we should update memory
     invalid: bool = True
 
@@ -14,19 +14,32 @@ class CacheLine:
 class Cache:
     cache: list[list[CacheLine]]
 
-    def __init__(self, cache_size: int, page_size: int, mapping: str, num_lines: int = 1):
+    def __init__(self, cache_size: int, page_size: int, mapping: str, lines_per_set: int = 1):
         self.mapping = mapping
         self.cache = []
         self.page_size = page_size
+        self.mapping = mapping
         for ith_set in range(cache_size // page_size):
             line_set = []
-            for ith_line in range(num_lines):
+            for ith_line in range(lines_per_set):
                 line_set.append(CacheLine())
             self.cache.append(line_set)
 
-    def check(self, address: int) -> bool:
-        tag, set_num, _offset = apply_address_format(address)
-        for line in self.cache[set_num]:
-            if line.tag == tag and not line.invalid:
-                return True
-        return False
+    def check(self, tag_bits: str, set_bits: str)->bool:
+        if set_bits == None: # fully-associative
+            for set in self.cache:
+                for line in set:
+                    if line.tag == tag_bits and not line.invalid:
+                        return True
+            return False
+        else:
+            set_index = int(set_bits, 2)
+            set = self.cache[set_index]
+            for line in set:
+                if line.tag == tag_bits and not line.invalid:
+                    return True
+            return False
+
+    
+
+        
