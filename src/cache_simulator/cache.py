@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from address import apply_address_format
 
 @dataclass
@@ -9,6 +9,7 @@ class CacheLine:
     access_counter: int = 0 # update when hit
     used_timestamp: int = 0 # update when hit and swapped
     swapped_timestamp: int = 0 # update when swapped
+    written_offsets: list[str] = field(default_factory=list) # update when written
 
 class Cache:
     cache: list[list[CacheLine]]
@@ -39,4 +40,4 @@ class Cache:
                     line.access_counter += 1
                     line.used_timestamp = clock
                     return True
-            return False     
+            return False 

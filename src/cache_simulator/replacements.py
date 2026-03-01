@@ -41,3 +41,4 @@ def swap_page(cache: Cache, tag_bits: str, set_index: int, line_index:int, clock
     line.invalid = False
     line.swapped_timestamp = clock
     line.used_timestamp = clock
+    return line
