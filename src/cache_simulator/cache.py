@@ -9,7 +9,7 @@ class CacheLine:
     access_counter: int = 0 # update when hit
     used_timestamp: int = 0 # update when hit and swapped
     swapped_timestamp: int = 0 # update when swapped
-    written_offsets: list[str] = field(default_factory=list) # update when written
+    written_offsets: dict = field(default_factory=dict) # holds the count of write time depending on offset
 
 class Cache:
     cache: list[list[CacheLine]]
@@ -23,15 +23,15 @@ class Cache:
                 line_set.append(CacheLine())
             self.cache.append(line_set)
 
-    def check(self, tag_bits: str, set_bits: str, clock: int)->bool:
+    def check(self, tag_bits: str, set_bits: str, clock: int)->CacheLine:
         if set_bits == "": # fully-associative
             for set in self.cache:
                 for line in set:
                     if line.tag == tag_bits and not line.invalid:
                         line.access_counter += 1
                         line.used_timestamp = clock
-                        return True
-            return False
+                        return line
+            return None
         else:
             set_index = int(set_bits, 2)
             set = self.cache[set_index]
@@ -39,5 +39,5 @@ class Cache:
                 if line.tag == tag_bits and not line.invalid:
                     line.access_counter += 1
                     line.used_timestamp = clock
-                    return True
-            return False 
+                    return line
+            return None

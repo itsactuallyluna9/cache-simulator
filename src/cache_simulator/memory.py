@@ -3,4 +3,4 @@ class Memory:
         self.memory_size = memory_size
         self.pages = memory_size // page_size
         self.page_size = page_size
-        self.memory = [None] * self.pages
+        self.memory = [{} for _ in range(self.pages)]

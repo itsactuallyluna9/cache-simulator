@@ -2,7 +2,7 @@ from memory import Memory
 from cache import Cache, CacheLine
 from address import apply_address_format
 from instructions import rng_instructions
-from writes import write_through, write_back
+from writes import write_through, write_back, flush_line
 from replacements import swap_page, random_replacement,least_frequently_used, least_recently_used, first_in_first_out
 
 class SimulationEngine:
@@ -48,36 +48,40 @@ class SimulationEngine:
         clock = 0
         for instruction, addr in rng_instructions(self._num_instruction, self._memory_size):
             tag_bits, set_bits, offset_bits = apply_address_format(addr, self._memory_size, self._page_size, self._cache_size, self._line_per_set)
-            hit = self._cache.check(tag_bits, set_bits, clock)
+            page_bits = tag_bits + set_bits
+            page_index = int(page_bits, 2)
+            line = self._cache.check(tag_bits, set_bits, clock)
             if instruction == "r":
-                if hit:
+                if line is not None:
                     self._read_hit += 1
                 else:
                     self._read_miss += 1
-                    self._handle_miss(tag_bits, set_bits, clock)
+                    self._handle_miss(tag_bits, set_bits, clock, page_index)
             elif instruction == "w":
-                if hit:
+                if line is not None:
                     self._write_hit += 1
                 else:
                     self._write_miss += 1
-                    line = self._handle_miss(tag_bits, set_bits, clock)
-                self._write_cache(line, offset_bits)
+                    line = self._handle_miss(tag_bits, set_bits, clock, page_index)
+                self._write_cache(line, offset_bits, page_index)
             else:
                 raise ValueError(f"Invalid instruction: {instruction}")
             clock += 1
         print(f"Read hits: {self._read_hit}, misses: {self._read_miss}")
         print(f"Write hits: {self._write_hit}, misses: {self._write_miss}")
 
-    def _handle_miss(self, tag_bits: str, set_bits: str, clock: int):
+    def _handle_miss(self, tag_bits: str, set_bits: str, clock: int, page_index: int):
         if self._mapping == "direct":
             set_index=int(set_bits, 2)
             line = swap_page(self._cache, tag_bits, set_index=set_index, line_index=0, clock=clock)
+            flush_line(self._memory, line, page_index)
         else:
             if self._mapping == "fully_associative":
                 set_index = 0
             elif self._mapping == "set_associative":
                 set_index = int(set_bits, 2)
             line = self._do_replacement(tag_bits, set_index, clock)
+            flush_line(self._memory, line, page_index)
         return line
     
     def _do_replacement(self, tag_bits: str, set_index, clock:int):
@@ -101,8 +105,8 @@ class SimulationEngine:
 
         return line
 
-    def _write_cache(self, line: CacheLine, offset_bits: str):
+    def _write_cache(self, line: CacheLine, offset_bits: str, page_index: int):
         if self._write_policy == "write_through":
-            write_through(self._memory, line, offset_bits)
+            write_through(self._memory, line, offset_bits, page_index)
         elif self._write_policy == "write_back":
-            write_back(self, line, offset_bits)
+            write_back(line, offset_bits)
