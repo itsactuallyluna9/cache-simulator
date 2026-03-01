@@ -2,7 +2,7 @@ from memory import Memory
 from cache import Cache, CacheLine
 from address import apply_address_format
 from instructions import rng_instructions
-from replacements import swap_page, random_replacement, replace_unused, least_frequently_used
+from replacements import swap_page, random_replacement,least_frequently_used, least_recently_used, first_in_first_out
 
 class SimulationEngine:
     mapping_strategy = ["direct", "fully-associative", "set-associative"]
@@ -36,50 +36,48 @@ class SimulationEngine:
         self._hit_counter = 0
 
     def simulate(self):
+        clock = 0
         for instruction, addr in rng_instructions(self._num_instruction, self._memory_size):
             tag_bits, line_bits, offset_bits = apply_address_format(addr, self._memory_size, self._page_size, self._cache_size, self._line_per_set)
             if instruction == "r":
-                self._read_cache(tag_bits, line_bits)
+                self._read_cache(tag_bits, line_bits, clock)
             elif instruction == "w":
                 pass
             else:
                 raise ValueError(f"Invalid instruction : {instruction}")
-            self._update_timestamp()
+            clock += 1
         print(f"Hit number : {self._hit_counter}")
         print(f"Missed number: {self._num_instruction - self._hit_counter}")
 
-    def _read_cache(self, tag_bits: str, line_bits: str):
-        if self._cache.check(tag_bits, line_bits):
+    def _read_cache(self, tag_bits: str, line_bits: str, clock: int):
+        if self._cache.check(tag_bits, line_bits, clock):
             self._hit_counter += 1
         else:
             if self._mapping == "direct":
-                swap_page(self._cache, tag_bits, line_bits)
+                set_index=int(line_bits, 2)
+                swap_page(self._cache, tag_bits, set_index=set_index, line_index=0, clock=clock)
             else:
                 if self._mapping == "fully-associative":
-                    victim_set = self._cache.cache[0]
+                    set_index = 0
                 elif self._mapping == "set-associative":
                     set_index = int(line_bits, 2)
-                    victim_set = self._cache.cache[set_index]
-                self._do_replacement(victim_set, tag_bits)
+                self._do_replacement(tag_bits, set_index, clock)
 
-    def _do_replacement(self, victim_set: list[CacheLine], tag_bits: str):
+    def _do_replacement(self, tag_bits: str, set_index, clock:int):
+        victim_set = self._cache.cache[set_index]
+        for index, line in enumerate(victim_set):
+            if line.invalid:
+                swap_page(self._cache, tag_bits, set_index=set_index, line_index=index, clock=clock)
+                return
         if self._replacement == "random":
-            victim, victim_index = random_replacement(victim_set)
+            victim_index = random_replacement(victim_set)
         elif self._replacement == "LFU":
-            victim, victim_index = least_frequently_used(victim_set)
+            victim_index = least_frequently_used(victim_set)
         elif self._replacement == "LRU":
-            pass
+            victim_index = least_recently_used(victim_set)
         elif self._replacement == "FIFO":
-            pass
+            victim_index = first_in_first_out(victim_set)
         else:
             raise ValueError(f"Unknown replacement policy : {self._replacement}")
         
-        if victim.tag == "":
-            replace_unused(self._cache.cache[0], tag_bits)
-        else:
-            swap_page(self._cache, tag_bits, set_bits=None, line_index=victim_index)
-
-        
-    
-    def _update_timestamp(self):
-        pass
+        swap_page(self._cache, tag_bits, set_index=set_index, line_index=victim_index, clock=clock)
