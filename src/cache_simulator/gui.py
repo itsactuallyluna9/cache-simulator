@@ -131,6 +131,7 @@ class CacheSimulatorGUI:
             "write_policy": write_policy,
             "replacement": replacement,
             "line_per_set": n_ways if mapping == "set_associative" else 1,
+            "num_instruction": 0,  # not used?
         }
 
     def _add_trace_entry(self, trace_dict: dict):
@@ -138,7 +139,7 @@ class CacheSimulatorGUI:
         # add to in-memory trace (with limit)
         self.execution_trace.append(trace_dict)
         if len(self.execution_trace) > self.max_trace_entries:
-            self.execution_trace.pop(0) # remove oldest
+            self.execution_trace.pop(0)  # remove oldest
 
         # write to file if enabled
         if self.trace_log_file:
@@ -244,7 +245,7 @@ class CacheSimulatorGUI:
     def randomize_seed(self):
         import random
 
-        new_seed = random.randint(0, 2**32 - 1) # might as well...
+        new_seed = random.randint(0, 2**32 - 1)  # might as well...
         dpg.set_value(self.config_widgets["rng_seed"], new_seed)
 
     def apply_locality_preset(self, preset_name):
@@ -529,8 +530,8 @@ class CacheSimulatorGUI:
         dpg.configure_item(self.status_widgets["export_btn"], enabled=False)
 
     def export_results(self):
-        """Export simulation results to CSV."""
-        if not self.execution_trace:
+        """Export simulation results to CSV with configuration and statistics."""
+        if not self.execution_trace or not self.engine:
             dpg.set_value(self.status_widgets["sim_status"], "[X] No data to export")
             return
 
@@ -542,7 +543,87 @@ class CacheSimulatorGUI:
             with open(filename, "w", newline="") as f:
                 writer = csv.writer(f)
 
-                # Write header
+                # Write configuration summary
+                writer.writerow(["CONFIGURATION"])
+                writer.writerow([])
+
+                config = self._get_simulation_config()
+                writer.writerow(["Memory Size", f"{config['memory_size']} bytes"])
+                writer.writerow(["Page Size", f"{config['page_size']} bytes"])
+                writer.writerow(["Cache Size", f"{config['cache_size']} bytes"])
+                writer.writerow(["Mapping Policy", config["mapping"]])
+                writer.writerow(["Write Policy", config["write_policy"]])
+                if config["replacement"]:
+                    writer.writerow(["Replacement Policy", config["replacement"]])
+                if config["mapping"] == "set_associative":
+                    writer.writerow(["N-Ways", config.get("n_ways", "N/A")])
+                writer.writerow([])
+
+                # Write statistics summary
+                writer.writerow(["STATISTICS"])
+                writer.writerow([])
+
+                stats = self.engine.get_statistics()
+                writer.writerow(["Total Accesses", stats["total_accesses"]])
+                writer.writerow(
+                    ["Total Reads", stats["read_hits"] + stats["read_misses"]]
+                )
+                writer.writerow(
+                    ["Total Writes", stats["write_hits"] + stats["write_misses"]]
+                )
+                writer.writerow([])
+
+                writer.writerow(["Total Hits", stats["total_hits"]])
+                writer.writerow(["Total Misses", stats["total_misses"]])
+                writer.writerow(["Hit Rate", f"{stats['hit_rate'] * 100:.2f}%"])
+                writer.writerow(["Miss Rate", f"{stats['miss_rate'] * 100:.2f}%"])
+                writer.writerow([])
+
+                total_reads = stats["read_hits"] + stats["read_misses"]
+                if total_reads > 0:
+                    read_hit_pct = (stats["read_hits"] / total_reads) * 100
+                    writer.writerow(
+                        ["Read Hits", f"{stats['read_hits']} ({read_hit_pct:.2f}%)"]
+                    )
+                    writer.writerow(
+                        [
+                            "Read Misses",
+                            f"{stats['read_misses']} ({100 - read_hit_pct:.2f}%)",
+                        ]
+                    )
+
+                total_writes = stats["write_hits"] + stats["write_misses"]
+                if total_writes > 0:
+                    write_hit_pct = (stats["write_hits"] / total_writes) * 100
+                    writer.writerow(
+                        ["Write Hits", f"{stats['write_hits']} ({write_hit_pct:.2f}%)"]
+                    )
+                    writer.writerow(
+                        [
+                            "Write Misses",
+                            f"{stats['write_misses']} ({100 - write_hit_pct:.2f}%)",
+                        ]
+                    )
+                writer.writerow([])
+
+                writer.writerow(["Evictions", stats.get("evictions", 0)])
+                writer.writerow(["Writebacks", stats.get("writebacks", 0)])
+                writer.writerow([])
+
+                # Average access time
+                if stats["total_accesses"] > 0:
+                    cache_hit_time = 1
+                    memory_access_time = 100
+                    avg_time = stats["hit_rate"] * cache_hit_time + stats[
+                        "miss_rate"
+                    ] * (cache_hit_time + memory_access_time)
+                    writer.writerow(["Average Access Time", f"{avg_time:.2f} cycles"])
+                writer.writerow([])
+                writer.writerow([])
+
+                # Write trace data header
+                writer.writerow(["EXECUTION TRACE"])
+                writer.writerow([])
                 writer.writerow(
                     [
                         "Step",
@@ -745,7 +826,7 @@ class CacheSimulatorGUI:
         selected_set_lines = cache_state[self.selected_set]
         current_clock = self.engine._clock if self.engine else 0
 
-        # add rows for each way in the selected set
+        # add rows for each line in the selected set
         for way_idx, line in enumerate(selected_set_lines):
             with dpg.table_row(parent="cache_detail_table"):
                 dpg.add_text(str(way_idx))
@@ -972,7 +1053,7 @@ class CacheSimulatorGUI:
         # i keep running into a edge case where sometimes, rarely, the items dont exist.
         # im almost out of time, its gotta be this way...
         # im sorry...
-        
+
         # address breakdown
         if dpg.does_item_exist("current_address_text"):
             dpg.set_value("current_address_text", "No address yet")
@@ -1464,7 +1545,7 @@ class CacheSimulatorGUI:
                             scrollY=True,
                             height=150,
                         ):
-                            dpg.add_table_column(label="Way")
+                            dpg.add_table_column(label="Line")
                             dpg.add_table_column(label="Tag")
                             dpg.add_table_column(label="Dirty")
                             dpg.add_table_column(label="Accesses")
