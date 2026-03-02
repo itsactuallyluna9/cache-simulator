@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from address import apply_address_format
+from .address import apply_address_format
 
 @dataclass
 class CacheLine:

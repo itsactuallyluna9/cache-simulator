@@ -1,7 +1,7 @@
 import random
 from typing import Optional
-from cache import CacheLine, Cache
-from memory import Memory
+from .cache import CacheLine, Cache
+from .memory import Memory
 
 def random_replacement(cache_set: list[CacheLine]) -> int:
     victim_index = random.randrange(len(cache_set))

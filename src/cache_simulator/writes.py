@@ -1,5 +1,6 @@
-from memory import Memory
-from cache import CacheLine
+from .memory import Memory
+from .cache import CacheLine
+
 def write_through(memory: Memory, cache_line: CacheLine, offset_bits: str, page_index: int):
     page = memory.memory[page_index]
     page[offset_bits] = page.get(offset_bits, 0) + 1

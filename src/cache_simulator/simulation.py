@@ -1,9 +1,9 @@
-from memory import Memory
-from cache import Cache, CacheLine
-from address import apply_address_format
-from instructions import rng_instructions
-from writes import write_through, write_back, flush_line
-from replacements import swap_page, random_replacement,least_frequently_used, least_recently_used, first_in_first_out
+from .memory import Memory
+from .cache import Cache, CacheLine
+from .address import apply_address_format
+from .instructions import rng_instructions
+from .writes import write_through, write_back, flush_line
+from .replacements import swap_page, random_replacement,least_frequently_used, least_recently_used, first_in_first_out
 
 class SimulationEngine:
     mapping_strategy = ["direct", "fully_associative", "set_associative"]
